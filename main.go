@@ -28,7 +28,7 @@ func parse_mountopts(opts string) (string, error) {
 func main() {
 	// FIXME: we need a better place for the original
 	//        which is not in path
-	target := "/usr/local/sbin/fusermount3"
+	target := "/opt/fuzermount/fusermount3"
 
 	// Forward all arguments except argv[0]
 	args := os.Args[1:]
