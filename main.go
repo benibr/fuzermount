@@ -8,10 +8,14 @@ import (
 
 func parse_mountopts(opts string) (string, error) {
 	// TODO: add checks here if necessary
+	// eg: remove suid
+	// eg: check for type daos
 	return opts, nil
 }
 
 func main() {
+	// FIXME: we need a better place for the original
+	//        which is not in path
 	target := "/usr/local/sbin/fusermount3"
 
 	// Forward all arguments except argv[0]
@@ -20,16 +24,19 @@ func main() {
 	var parsed_opts, mountpoint, action string
 
 	for argno := range args {
+		// TODO: add help output
 		if args[argno] == "-o" {
 			parsed_opts, _ = parse_mountopts(args[argno+1])
 
 		}
 		if args[argno] == "--" {
 			mountpoint = args[argno+1]
+			//TODO: check if mountpoint is a path
 			action = "mount"
 		}
 		if args[argno] == "-u" {
 			mountpoint = args[argno+1]
+			//TODO: check if mountpoint is a path
 			action = "umount"
 		}
 
