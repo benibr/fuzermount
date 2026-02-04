@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# this is a stub replacement just for debugging
+
+echo "Would call fusermount3 with:"
+echo -e "\n'\t\t${@}'"
