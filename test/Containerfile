@@ -3,6 +3,7 @@ FROM rockylinux:9
 RUN dnf -y install fuse3
 
 COPY test/fusermount3 /opt/fuzermount/fusermount3
+# shall be overwritten when testing
 COPY fuzermount /opt/fuzermount/fuzermount
 
 RUN ln -sf /opt/fuzermount/fuzermount /usr/bin/fusermount3
