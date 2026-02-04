@@ -4,13 +4,25 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 func parse_mountopts(opts string) (string, error) {
-	// TODO: add checks here if necessary
-	// eg: remove suid
-	// eg: check for type daos
-	return opts, nil
+	var safe_opts []string
+
+	for opt := range strings.SplitSeq(opts, ",") {
+		// TODO: add checks here if necessary
+		// eg: remove suid
+		// eg: check for type daos
+		if opt == "" {
+			continue
+		}
+		safe_opts = append(safe_opts, opt)
+	}
+
+	ret := strings.Join(safe_opts, ",")
+
+	return ret, nil
 }
 
 func main() {
