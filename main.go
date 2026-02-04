@@ -7,7 +7,7 @@ import (
 )
 
 func parse_mountopts(opts string) (string, error) {
-	// stub
+	// TODO: add checks here if necessary
 	return opts, nil
 }
 
@@ -17,8 +17,7 @@ func main() {
 	// Forward all arguments except argv[0]
 	args := os.Args[1:]
 
-	var parsed_opts string
-	var mountpoint string
+	var parsed_opts, mountpoint, action string
 
 	for argno := range args {
 		if args[argno] == "-o" {
@@ -27,19 +26,30 @@ func main() {
 		}
 		if args[argno] == "--" {
 			mountpoint = args[argno+1]
+			action = "mount"
 		}
+		if args[argno] == "-u" {
+			mountpoint = args[argno+1]
+			action = "umount"
+		}
+
 	}
 
-	safe_args := []string{"-o", parsed_opts, "--", mountpoint}
-	// Prepare the command
-	cmd := exec.Command(target, safe_args...)
+	var safe_args []string
 
-	// Connect stdio so it behaves like the wrapped program
+	// build fusermount arguments
+	if action == "mount" {
+		safe_args = []string{"-o", parsed_opts, "--", mountpoint}
+	}
+	if action == "umount" {
+		safe_args = []string{"-u", mountpoint}
+	}
+
+	cmd := exec.Command(target, safe_args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	// Run it
 	if err := cmd.Run(); err != nil {
 		log.Fatalf("error running %s: %v", target, err)
 	}
