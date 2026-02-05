@@ -32,11 +32,11 @@ func check_parent() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	fmt.Printf("Calling fusermount3 was called by '%s'", parentPath)
 	if slices.Contains(allowedParents, parentPath) {
-		fmt.Println("Error:", err)
 		return true, nil
 	}
+	// FIXME: this should be returned and printed by main()
+	fmt.Printf("fusermount3 was called by '%s'", parentPath)
 	return false, nil
 }
 
