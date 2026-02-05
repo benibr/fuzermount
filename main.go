@@ -6,9 +6,33 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 )
+
+// lists with permission
+var allowedParents = []string{"/usr/bin/dfuse"}
+
+func check_parent() (bool, error) {
+	ppid := os.Getppid()
+	procPath := fmt.Sprintf("/proc/%d/exe", ppid)
+
+	parentPath, err := os.Readlink(procPath)
+	if err != nil {
+		return false, err
+	}
+	parentPath, err = filepath.EvalSymlinks(parentPath)
+	if err != nil {
+		return false, err
+	}
+	fmt.Printf("Calling fusermount3 was called by '%s'", parentPath)
+	if slices.Contains(allowedParents, parentPath) {
+		fmt.Println("Error:", err)
+		return true, nil
+	}
+	return false, nil
+}
 
 func check_mountopts(opts string) (string, error) {
 	// this function allows to set mountoptions that must or must not exist
@@ -48,6 +72,8 @@ func main() {
 
 	// Forward all arguments except argv[0]
 	args := os.Args[1:]
+
+	// help output
 	if len(args) < 2 {
 		fmt.Println("This is NHR@ZIB mounting wrapper for FUSE filesystems.")
 		fmt.Println(errors.New("unexpected arguments"))
@@ -60,6 +86,21 @@ func main() {
 	var parsed_opts, mountpoint, action string
 	var err error
 
+	// check if parent is allowed
+	if args[0] != "-u" {
+		parentAllowed, err := check_parent()
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(1)
+		}
+		if !parentAllowed {
+			fmt.Println("Calling fusermount3 is only allowed from")
+			fmt.Println(allowedParents)
+			os.Exit(1)
+		}
+	}
+
+	// parse and check arguments
 	for argno := range args {
 		// TODO: add help output
 		if args[argno] == "-o" {
@@ -80,7 +121,6 @@ func main() {
 			//TODO: check if mountpoint is a path
 			action = "umount"
 		}
-
 	}
 
 	var safe_args []string
