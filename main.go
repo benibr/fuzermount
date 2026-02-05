@@ -11,7 +11,7 @@ import (
 
 func check_mountopts(opts string) (string, error) {
 	// this function allows to set mountoptions that must or must not exist
-	mandatory_opts := []string{"nosuid", "nodev", "noatime", "default_permissions", "fsname=dfuse", "subtype=daos"}
+	mandatory_opts := []string{"nosuid", "nodev", "noatime", "default_permissions", "fsname=dfuse"}
 	forbidden_opts := []string{"suid"}
 	var return_opts []string
 
@@ -43,8 +43,6 @@ func check_mountopts(opts string) (string, error) {
 }
 
 func main() {
-	// FIXME: we need a better place for the original
-	//        which is not in path
 	target := "/opt/fuzermount/fusermount3"
 
 	// Forward all arguments except argv[0]
@@ -52,6 +50,8 @@ func main() {
 
 	var parsed_opts, mountpoint, action string
 	var err error
+
+	//FIXME: print help
 
 	for argno := range args {
 		// TODO: add help output
