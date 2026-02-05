@@ -13,6 +13,7 @@ import (
 
 // lists with permission
 // TODO: these global vars could go to a config file
+var target = "/opt/fuzermount/fusermount3"
 var allowedParents = []string{"/usr/bin/dfuse"}
 var mandatory_opts = []string{"nosuid", "nodev", "noatime", "default_permissions", "fsname=dfuse"}
 var forbidden_opts = []string{"suid"}
@@ -40,7 +41,7 @@ func check_parent() (bool, error) {
 }
 
 func check_mountopts(opts string) (string, error) {
-	// this function allows to set mountoptions that must or must not exist
+	// this function checks for mount options that must or must not exist
 	var return_opts []string
 
 	for opt := range strings.SplitSeq(opts, ",") {
@@ -54,13 +55,13 @@ func check_mountopts(opts string) (string, error) {
 		if slices.Contains(forbidden_opts, opt) {
 			return "", fmt.Errorf("'%s' is a forbidden mount option. Denying fuse mount", opt)
 		}
-
 		// remove empty strings
 		if opt == "" {
 			continue
 		}
 		return_opts = append(return_opts, opt)
 	}
+	// check if all mandatory options are set
 	if len(mandatory_opts) == 0 {
 		ret := strings.Join(return_opts, ",")
 		return ret, nil
@@ -71,7 +72,6 @@ func check_mountopts(opts string) (string, error) {
 }
 
 func main() {
-	target := "/opt/fuzermount/fusermount3"
 
 	// Forward all arguments except argv[0]
 	args := os.Args[1:]
