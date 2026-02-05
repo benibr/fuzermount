@@ -18,6 +18,18 @@ var allowedParents = []string{"/usr/bin/dfuse"}
 var mandatory_opts = []string{"nosuid", "nodev", "noatime", "default_permissions", "fsname=dfuse"}
 var forbidden_opts = []string{"suid"}
 
+func checkDirectory(path string) error {
+	// checks if the given string is actually a available path in the system
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if fileInfo.IsDir() {
+		return nil
+	}
+	return errors.New("given mountpoint is not a directory")
+}
+
 func check_parent() (bool, error) {
 	// this function checks if the parent PID is a executable
 	// whose full path is in the allowed list
@@ -116,13 +128,23 @@ func main() {
 		}
 		if args[argno] == "--" {
 			mountpoint = args[argno+1]
-			//TODO: check if mountpoint is a path
-			action = "mount"
+			err := checkDirectory(mountpoint)
+			if err == nil {
+				action = "mount"
+			} else {
+				fmt.Println(err)
+				os.Exit(1)
+			}
 		}
 		if args[argno] == "-u" {
 			mountpoint = args[argno+1]
-			//TODO: check if mountpoint is a path
-			action = "umount"
+			err := checkDirectory(mountpoint)
+			if err == nil {
+				action = "umount"
+			} else {
+				fmt.Println(err)
+				os.Exit(1)
+			}
 		}
 	}
 
