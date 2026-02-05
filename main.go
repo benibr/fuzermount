@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -47,11 +48,17 @@ func main() {
 
 	// Forward all arguments except argv[0]
 	args := os.Args[1:]
+	if len(args) < 2 {
+		fmt.Println("This is NHR@ZIB mounting wrapper for FUSE filesystems.")
+		fmt.Println(errors.New("unexpected arguments"))
+		fmt.Println("Available commands are:")
+		fmt.Println("  '-o some,mount,options -- /path/to/mountpoint/'")
+		fmt.Println("  '-u /path/to/mountpoint/'")
+		os.Exit(1)
+	}
 
 	var parsed_opts, mountpoint, action string
 	var err error
-
-	//FIXME: print help
 
 	for argno := range args {
 		// TODO: add help output
