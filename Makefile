@@ -24,6 +24,8 @@ test: containerbuild
 	podman run --rm -ti --name fuzermount-test -v ./fuzermount:/opt/fuzermount/fuzermount -- fuzermount:test dfuse -a foo -o bar,secu,bang -bas -- /mnt/foo || true
 	@echo
 	podman run --rm -ti --name fuzermount-test -v ./fuzermount:/opt/fuzermount/fuzermount -- fuzermount:test dfuse -a foo -u /mnt/foo -o bar,secu,,bang -bas -- /mnt/foo || true
+	@echo
+	podman run --rm -ti --name fuzermount-test -v ./fuzermount:/opt/fuzermount/fuzermount -- fuzermount:test dfuse -a foo -o suid -- /mnt/foo || true
 
 
 .PHONY: clean
