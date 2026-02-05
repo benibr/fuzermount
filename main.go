@@ -1,28 +1,45 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 )
 
-func parse_mountopts(opts string) (string, error) {
-	var safe_opts []string
+func check_mountopts(opts string) (string, error) {
+	// this function allows to set mountoptions that must or must not exist
+	mandatory_opts := []string{"nosuid", "nodev", "noatime", "default_permissions", "fsname=dfuse", "subtype=daos"}
+	forbidden_opts := []string{"suid"}
+	var return_opts []string
 
 	for opt := range strings.SplitSeq(opts, ",") {
-		// TODO: add checks here if necessary
-		// eg: remove suid
-		// eg: check for type daos
+		// check for mandatory options
+		if slices.Contains(mandatory_opts, opt) {
+			mandatory_opts = slices.DeleteFunc(mandatory_opts, func(s string) bool {
+				return s == opt
+			})
+		}
+		// check for forbidden options
+		if slices.Contains(forbidden_opts, opt) {
+			return "", fmt.Errorf("'%s' is a forbidden mount option. Denying fuse mount", opt)
+		}
+
+		// remove empty strings
 		if opt == "" {
 			continue
 		}
-		safe_opts = append(safe_opts, opt)
+		return_opts = append(return_opts, opt)
 	}
-
-	ret := strings.Join(safe_opts, ",")
-
-	return ret, nil
+	if len(mandatory_opts) == 0 {
+		ret := strings.Join(return_opts, ",")
+		return ret, nil
+	} else {
+		missing_opts := strings.Join(mandatory_opts, ",")
+		return "", fmt.Errorf("not all mandatory mount options set. Missing '%s'\nDenying fuse mount", missing_opts)
+	}
 }
 
 func main() {
@@ -34,11 +51,16 @@ func main() {
 	args := os.Args[1:]
 
 	var parsed_opts, mountpoint, action string
+	var err error
 
 	for argno := range args {
 		// TODO: add help output
 		if args[argno] == "-o" {
-			parsed_opts, _ = parse_mountopts(args[argno+1])
+			parsed_opts, err = check_mountopts(args[argno+1])
+			if err != nil {
+				fmt.Println(err.Error())
+				os.Exit(1)
+			}
 
 		}
 		if args[argno] == "--" {

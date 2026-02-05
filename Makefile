@@ -17,11 +17,13 @@ containerbuild: build
 
 .PHONY: test
 test: containerbuild
-	podman run --rm -ti --name fuzermount-test -- fuzermount:test fusermount3 -a foo -o bar,secu,bang -bas -- /mnt/foo
+	podman run --rm -ti --name fuzermount-test -v ./fuzermount:/opt/fuzermount/fuzermount -- fuzermount:test fusermount3 -o nosuid,nodev,noatime,default_permissions,fsname=dfuse,subtype=daos -- /mnt/foo
 	@echo
-	podman run --rm -ti --name fuzermount-test -- fuzermount:test fusermount3 -u /mnt/foo
+	podman run --rm -ti --name fuzermount-test -v ./fuzermount:/opt/fuzermount/fuzermount -- fuzermount:test fusermount3 -u /mnt/foo
 	@echo
-	podman run --rm -ti --name fuzermount-test -- fuzermount:test fusermount3 -a foo -u /mnt/foo -o bar,secu,,bang -bas -- /mnt/foo
+	podman run --rm -ti --name fuzermount-test -v ./fuzermount:/opt/fuzermount/fuzermount -- fuzermount:test fusermount3 -a foo -o bar,secu,bang -bas -- /mnt/foo || true
+	@echo
+	podman run --rm -ti --name fuzermount-test -v ./fuzermount:/opt/fuzermount/fuzermount -- fuzermount:test fusermount3 -a foo -u /mnt/foo -o bar,secu,,bang -bas -- /mnt/foo || true
 
 
 .PHONY: clean
