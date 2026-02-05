@@ -138,13 +138,10 @@ func main() {
 		}
 		if args[argno] == "-u" {
 			mountpoint = args[argno+1]
-			err := checkDirectory(mountpoint)
-			if err == nil {
-				action = "umount"
-			} else {
-				fmt.Println(err)
-				os.Exit(1)
-			}
+			// checkDirectory cannot be called here because
+			// with DAOS local root might not be allowed to read
+			// the mounted directory
+			action = "umount"
 		}
 	}
 
