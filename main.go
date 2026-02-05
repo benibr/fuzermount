@@ -12,9 +12,14 @@ import (
 )
 
 // lists with permission
+// TODO: these global vars could go to a config file
 var allowedParents = []string{"/usr/bin/dfuse"}
+var mandatory_opts = []string{"nosuid", "nodev", "noatime", "default_permissions", "fsname=dfuse"}
+var forbidden_opts = []string{"suid"}
 
 func check_parent() (bool, error) {
+	// this function checks if the parent PID is a executable
+	// whose full path is in the allowed list
 	ppid := os.Getppid()
 	procPath := fmt.Sprintf("/proc/%d/exe", ppid)
 
@@ -36,8 +41,6 @@ func check_parent() (bool, error) {
 
 func check_mountopts(opts string) (string, error) {
 	// this function allows to set mountoptions that must or must not exist
-	mandatory_opts := []string{"nosuid", "nodev", "noatime", "default_permissions", "fsname=dfuse"}
-	forbidden_opts := []string{"suid"}
 	var return_opts []string
 
 	for opt := range strings.SplitSeq(opts, ",") {
