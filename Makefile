@@ -1,7 +1,7 @@
 SHELL:=/bin/bash
 EXE:=fuzermount
 
-default: run
+default: build
 
 .PHONY: run
 run: build
@@ -10,6 +10,13 @@ run: build
 .PHONY: build
 build:
 	go build
+
+.PHONY: rpm
+rpm: build
+	podman run --rm -ti --name fuzermount-rpm --workdir /data -v ./:/data docker://goreleaser/nfpm package \
+		--config nfpm.yaml \
+		--target ./ \
+		--packager rpm
 
 .PHONY: containerbuild
 containerbuild: build
@@ -30,5 +37,10 @@ test: containerbuild
 
 .PHONY: clean
 clean:
-	rm -rf $(EXE)
+	rm -f $(EXE)
+	rm -f *.rpm
 	podman rmi -f fuzermount:test
+
+.PHONY: depclean
+depclean:
+	podman rmi -f docker.io/goreleaser/nfpm
