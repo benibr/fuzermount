@@ -1,0 +1,29 @@
+# The lines below are called `modelines`. See `:help modeline`
+# Feel free to remove those if you don't want/need to use them.
+# yaml-language-server: $schema=https://nfpm.goreleaser.com/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+
+name: "fuzermount"
+arch: "amd64"
+platform: "linux"
+version: "1.0.0"
+section: "default"
+priority: "extra"
+depends:
+  - fuse3
+maintainer: "Benedikt Braunger <braunger@zib.de>"
+description: |
+  A wrapper tool for fusermount3 to control what
+  can be mounted as FUSE.
+vendor: "Zuse Institut Berlin"
+license: "MIT"
+contents:
+  - src: ./fuzermount
+    dst: /opt/fuzermount/fuzermount
+  # symlink structure is done in scripts to avoid
+  # conflicting between fuse and fusermount
+overrides:
+  rpm:
+    scripts:
+      preinstall: ./scripts/preinstall.sh
+      postremove: ./scripts/postremove.sh
