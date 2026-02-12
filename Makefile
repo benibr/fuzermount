@@ -13,6 +13,11 @@ build:
 
 .PHONY: rpm
 rpm: build
+	# try local nfpm or fallback to podman
+	nfpm package \
+		--config nfpm.yaml \
+		--target ./ \
+		--packager rpm || \
 	podman run --rm -ti --name fuzermount-rpm --workdir /data -v ./:/data docker://goreleaser/nfpm package \
 		--config nfpm.yaml \
 		--target ./ \
