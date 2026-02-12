@@ -1,0 +1,43 @@
+#    - git checkout $CI_COMMIT_BRANCH
+#    - git reset --hard origin/$CI_COMMIT_BRANCH
+
+stages:
+  - build
+  - rpm
+
+variables:
+  GO_VERSION: "1.25.1"
+  GORELEASER_VERSION: "v2.45.0"
+  PACKAGE_NAME: "fuzermount"
+  VERSION: "1.0.0"
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - go/pkg/mod
+    - .cache/go-build
+
+build:
+  stage: build
+  image: golang:${GO_VERSION}
+  script:
+    - make build
+  artifacts:
+    paths:
+      - "./${PACKAGE_NAME}"
+    expire_in: 1 week
+
+rpm:
+  stage: rpm
+  image:
+    name: goreleaser/nfpm:${GORELEASER_VERSION}
+    entrypoint: [""]
+  before_script:
+    - apk add curl
+  script:
+    - nfpm package --config nfpm.yaml --target ./ --packager rpm
+    - export PKG="$(ls -1 ./${PACKAGE_NAME}*.rpm | head -n1)"
+    - |
+      curl --location --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+           --upload-file ./${PACKAGE_NAME}*.rpm \
+           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${PACKAGE_NAME}/${VERSION}/"
