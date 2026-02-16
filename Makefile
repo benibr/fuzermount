@@ -1,4 +1,3 @@
-SHELL:=/bin/bash
 EXE:=fuzermount
 
 default: build
@@ -12,16 +11,23 @@ build:
 	go build
 
 .PHONY: rpm
-rpm: build
-	# try local nfpm or fallback to podman
-	nfpm package \
-		--config nfpm.yaml \
-		--target ./ \
-		--packager rpm || \
-	podman run --rm -ti --name fuzermount-rpm --workdir /data -v ./:/data docker://goreleaser/nfpm package \
-		--config nfpm.yaml \
-		--target ./ \
-		--packager rpm
+rpm: build rpm-only
+
+.PHONY: rpm-only
+rpm-only:
+	export BRANCH=$$(git branch --show-current) && \
+		export GIT_VERSION=$$(git rev-list --count $$BRANCH) && \
+		export VERSION="1.0.$$GIT_VERSION)" && \
+		envsubst < nfpm.yaml.in > nfpm.yaml
+		# try local nfpm or fallback to podman
+		nfpm package \
+			--config nfpm.yaml \
+			--target ./ \
+			--packager rpm || \
+		podman run --rm -ti --name fuzermount-rpm --workdir /data -v ./:/data docker://goreleaser/nfpm package \
+			--config nfpm.yaml \
+			--target ./ \
+			--packager rpm
 
 .PHONY: containerbuild
 containerbuild: build
@@ -44,6 +50,7 @@ test: containerbuild
 clean:
 	rm -f $(EXE)
 	rm -f *.rpm
+	rm -f nfpm.yaml
 	podman rmi -f fuzermount:test
 
 .PHONY: depclean

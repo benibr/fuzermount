@@ -6,7 +6,7 @@
 name: "fuzermount"
 arch: "amd64"
 platform: "linux"
-version: "1.0.0"
+version: "1.0.$GIT_VERSION"
 section: "default"
 priority: "extra"
 depends:
