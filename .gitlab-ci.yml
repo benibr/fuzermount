@@ -10,11 +10,6 @@ variables:
   GORELEASER_VERSION: "v2.45.0"
   PACKAGE_NAME: "fuzermount"
 
-cache:
-  key: ${CI_COMMIT_REF_SLUG}
-  paths:
-    - go/pkg/mod
-    - .cache/go-build
 
 build:
   stage: build
@@ -25,6 +20,11 @@ build:
     paths:
       - "./${PACKAGE_NAME}"
     expire_in: 1 week
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - go/pkg/mod
+      - .cache/go-build
 
 rpm:
   stage: rpm
@@ -38,8 +38,18 @@ rpm:
     - git checkout $CI_COMMIT_BRANCH
     - git reset --hard origin/$CI_COMMIT_BRANCH
     - make rpm-only
-    - export PKG="$(ls -1 ./${PACKAGE_NAME}*.rpm | head -n1)"
+    - export _PKG="$(ls -1 ./${PACKAGE_NAME}*.rpm | head -n1)"
+    - export PKG_NAME=$(basename $_PKG)
+    - export
+    - echo PKG ${_PKG}
+    - echo PKG_NAME ${PKG_NAME}
+    - echo PACKAGE_NAME ${PACKAGE_NAME}
+    - echo VERSION ${VERSION}
+    - echo CI_API_V4_URL ${CI_API_V4_URL}
+    - echo CI_PROJECT_ID ${CI_PROJECT_ID}
+    - ls -l ${_PKG}
     - |
       curl --location --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-           --upload-file ${PKG} \
-           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${PACKAGE_NAME}/${VERSION}/"
+           --upload-file ${_PKG} \
+           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${PACKAGE_NAME}/1.0/${PKG_NAME}"
+
