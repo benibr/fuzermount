@@ -30,8 +30,9 @@ rpm-only:
 			--packager rpm
 
 .PHONY: containerbuild
-containerbuild: build
-	podman build -t fuzermount:test -f test/Containerfile .
+containerbuild: rpm
+	RPM=$$(ls -1 *.rpm | head -n1) && \
+		podman build --build-arg RPM=$$RPM -t fuzermount:test -f test/Containerfile .
 
 .PHONY: test
 test: containerbuild

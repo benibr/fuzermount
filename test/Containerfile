@@ -1,12 +1,14 @@
 FROM rockylinux:9
+ARG RPM
 
 RUN dnf -y install fuse3 gcc
 
+COPY $RPM /tmp/
+RUN dnf -y install /tmp/*.rpm
+
+# use testing example mock of fusermount3
 COPY test/fusermount3 /opt/fuzermount/fusermount3
+
+# build dfuse mock executable
 COPY test/dfuse.c /tmp/dfuse.c
-# shall be overwritten when testing
-COPY fuzermount /opt/fuzermount/fuzermount
-
-RUN ln -sf /opt/fuzermount/fuzermount /usr/bin/fusermount3
-
 RUN gcc -O2 -o /usr/bin/dfuse /tmp/dfuse.c
