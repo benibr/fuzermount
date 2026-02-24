@@ -8,6 +8,7 @@ run: build
 
 .PHONY: build
 build:
+	go mod tidy
 	go build
 
 .PHONY: rpm
