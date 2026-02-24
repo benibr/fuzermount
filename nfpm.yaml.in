@@ -20,10 +20,13 @@ license: "MIT"
 contents:
   - src: ./fuzermount
     dst: /opt/fuzermount/fuzermount
+  - src: ./fuzermount.yaml
+    dst: /etc/fuzermount/fuzermount.yaml
   # symlink structure is done in scripts to avoid
   # conflicting between fuse and fusermount
 overrides:
   rpm:
     scripts:
       preinstall: ./scripts/preinstall.sh
+      postinstall: ./scripts/postinstall.sh
       postremove: ./scripts/postremove.sh
