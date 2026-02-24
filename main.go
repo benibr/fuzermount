@@ -3,12 +3,13 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/phuslu/log"
 )
 
 // lists with permission
@@ -84,9 +85,17 @@ func check_mountopts(opts string) (string, error) {
 }
 
 func main() {
+	logger := log.Logger{
+		Level: log.ParseLevel("info"),
+		Writer: &log.FileWriter{
+			Filename: "fuzermount.log",
+		},
+	}
 
 	// Forward all arguments except argv[0]
 	args := os.Args[1:]
+
+	logger.Info().Msg(strings.Join(args, " "))
 
 	// help output
 	if len(args) < 2 {
@@ -161,6 +170,6 @@ func main() {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		log.Fatalf("error running %s: %v", target, err)
+		logger.Fatal().Msg(fmt.Sprintf("error running %s: %v", target, err))
 	}
 }
