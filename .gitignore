@@ -1,3 +1,4 @@
 fuzermount
 *.rpm
 nfpm.yaml
+*.log
