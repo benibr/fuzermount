@@ -10,14 +10,17 @@ import (
 	"strings"
 
 	"github.com/phuslu/log"
+	"gopkg.in/yaml.v3"
 )
 
-// lists with permission
-// TODO: these global vars could go to a config file
-var target = "/opt/fuzermount/fusermount3"
-var allowedParents = []string{"/usr/bin/dfuse"}
-var mandatory_opts = []string{"nosuid", "nodev", "noatime", "default_permissions", "fsname=dfuse"}
-var forbidden_opts = []string{"suid"}
+type Config struct {
+	Target         string   `yaml:"target"`
+	AllowedParents []string `yaml:"allowedParents"`
+	MandatoryOpts  []string `yaml:"mandatoryOpts"`
+	ForbiddenOpts  []string `yaml:"forbiddenOpts"`
+}
+
+var config Config
 
 func checkDirectory(path string) error {
 	// checks if the given string is actually a available path in the system
@@ -45,7 +48,7 @@ func check_parent() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if slices.Contains(allowedParents, parentPath) {
+	if slices.Contains(config.AllowedParents, parentPath) {
 		return true, nil
 	}
 	// FIXME: this should be returned and printed by main()
@@ -59,13 +62,13 @@ func check_mountopts(opts string) (string, error) {
 
 	for opt := range strings.SplitSeq(opts, ",") {
 		// check for mandatory options
-		if slices.Contains(mandatory_opts, opt) {
-			mandatory_opts = slices.DeleteFunc(mandatory_opts, func(s string) bool {
+		if slices.Contains(config.MandatoryOpts, opt) {
+			config.MandatoryOpts = slices.DeleteFunc(config.MandatoryOpts, func(s string) bool {
 				return s == opt
 			})
 		}
 		// check for forbidden options
-		if slices.Contains(forbidden_opts, opt) {
+		if slices.Contains(config.ForbiddenOpts, opt) {
 			return "", fmt.Errorf("'%s' is a forbidden mount option. Denying fuse mount", opt)
 		}
 		// remove empty strings
@@ -75,11 +78,11 @@ func check_mountopts(opts string) (string, error) {
 		return_opts = append(return_opts, opt)
 	}
 	// check if all mandatory options are set
-	if len(mandatory_opts) == 0 {
+	if len(config.MandatoryOpts) == 0 {
 		ret := strings.Join(return_opts, ",")
 		return ret, nil
 	} else {
-		missing_opts := strings.Join(mandatory_opts, ",")
+		missing_opts := strings.Join(config.MandatoryOpts, ",")
 		return "", fmt.Errorf("not all mandatory mount options set. Missing '%s'\nDenying fuse mount", missing_opts)
 	}
 }
@@ -90,6 +93,15 @@ func main() {
 		Writer: &log.FileWriter{
 			Filename: "fuzermount.log",
 		},
+	}
+
+	configYaml, err := os.ReadFile("/etc/fuzermount/fuzermount.yaml")
+	if err != nil {
+		log.Fatal().Msg(err.Error())
+	}
+	err = yaml.Unmarshal(configYaml, &config)
+	if err != nil {
+		log.Fatal().Msg(err.Error())
 	}
 
 	// Forward all arguments except argv[0]
@@ -108,7 +120,6 @@ func main() {
 	}
 
 	var parsed_opts, mountpoint, action string
-	var err error
 
 	// check if parent is allowed
 	if args[0] != "-u" {
@@ -119,7 +130,7 @@ func main() {
 		}
 		if !parentAllowed {
 			fmt.Println("Calling fusermount3 is only allowed from")
-			fmt.Println(allowedParents)
+			fmt.Println(config.AllowedParents)
 			os.Exit(1)
 		}
 	}
@@ -164,12 +175,12 @@ func main() {
 		safe_args = []string{"-u", mountpoint}
 	}
 
-	cmd := exec.Command(target, safe_args...)
+	cmd := exec.Command(config.Target, safe_args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		logger.Fatal().Msg(fmt.Sprintf("error running %s: %v", target, err))
+		logger.Fatal().Msg(fmt.Sprintf("error running %s: %v", config.Target, err))
 	}
 }

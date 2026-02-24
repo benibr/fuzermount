@@ -1,0 +1,19 @@
+---
+# executable which will be called with privileges to mount
+target: "/opt/fuzermount/fusermount3"
+
+# allowed applications that might FUSE mount
+allowedParents: 
+  - "/usr/bin/dfuse"
+
+# allowed mounting options
+mandatoryOpts:
+  - "nosuid"
+  - "nodev"
+  - "noatime"
+  - "default_permissions"
+  - "fsname=dfuse"
+
+# forbidden mounting options
+forbiddenOpts:
+  - "suid"
