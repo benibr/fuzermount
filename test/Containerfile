@@ -5,14 +5,15 @@ RUN dnf -y install fuse3 gcc
 
 RUN useradd someuser
 
+# build dfuse mock executable
+COPY test/dfuse.c /tmp/dfuse.c
+RUN gcc -O2 -o /usr/bin/dfuse /tmp/dfuse.c
+
+# install current fuzermoutn rpm
 COPY $RPM /tmp/
 RUN dnf -y install /tmp/*.rpm
 
 # use testing example mock of fusermount3
 COPY test/fusermount3 /opt/fuzermount/fusermount3
-
-# build dfuse mock executable
-COPY test/dfuse.c /tmp/dfuse.c
-RUN gcc -O2 -o /usr/bin/dfuse /tmp/dfuse.c
 
 USER someuser
