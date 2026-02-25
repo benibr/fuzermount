@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 
 	"github.com/phuslu/log"
 	"gopkg.in/yaml.v3"
@@ -22,6 +23,25 @@ type Config struct {
 }
 
 var config Config
+var logger log.Logger
+
+func dropPrivileges(euid int, egid int) {
+	// Unset supplementary group IDs.
+	err := syscall.Setgroups([]int{})
+	if err != nil {
+		log.Fatal().Msg("Fa.Error()iled to unset supplementary group IDs: " + err.Error())
+	}
+	// Set group ID (real and effective).
+	err = syscall.Setgid(egid)
+	if err != nil {
+		log.Fatal().Msg("Failed to set group ID: " + err.Error())
+	}
+	// Set user ID (real and effective).
+	err = syscall.Setuid(euid)
+	if err != nil {
+		log.Fatal().Msg("Failed to set user ID: " + err.Error())
+	}
+}
 
 func checkDirectory(path string) error {
 	// checks if the given string is actually a available path in the system
@@ -89,13 +109,15 @@ func check_mountopts(opts string) (string, error) {
 }
 
 func main() {
-	logger := log.Logger{
+	// init logging
+	logger = log.Logger{
 		Level: log.ParseLevel("info"),
 		Writer: &log.FileWriter{
 			Filename: "fuzermount.log",
 		},
 	}
 
+	// parse config file
 	configYaml, err := os.ReadFile("/etc/fuzermount/fuzermount.yaml")
 	if err != nil {
 		log.Fatal().Msg(err.Error())
@@ -105,11 +127,9 @@ func main() {
 		log.Fatal().Msg(err.Error())
 	}
 
-	// Forward all arguments except argv[0]
+	// parse args
 	args := os.Args[1:]
-
 	logger.Info().Msg(strings.Join(args, " "))
-
 	// help output
 	if len(args) < 2 {
 		fmt.Println("This is NHR@ZIB mounting wrapper for FUSE filesystems.")
@@ -120,63 +140,81 @@ func main() {
 		os.Exit(1)
 	}
 
+	// here the filtering starts
 	var parsed_opts, mountpoint, action string
 
-	// check if parent is allowed
-	if args[0] != "-u" {
-		parentAllowed, err := check_parent()
-		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
-		}
-		if !parentAllowed {
-			fmt.Println("Calling fusermount3 is only allowed from")
-			fmt.Println(config.AllowedParents)
-			os.Exit(1)
-		}
-	}
-
-	// parse and check arguments
-	for argno := range args {
-		// TODO: add help output
-		if args[argno] == "-o" {
-			parsed_opts, err = check_mountopts(args[argno+1])
+	if config.Mode == "strict" {
+		// check allowed parent application
+		if args[0] != "-u" {
+			parentAllowed, err := check_parent()
 			if err != nil {
 				fmt.Println(err.Error())
 				os.Exit(1)
 			}
-
-		}
-		if args[argno] == "--" {
-			mountpoint = args[argno+1]
-			err := checkDirectory(mountpoint)
-			if err == nil {
-				action = "mount"
-			} else {
-				fmt.Println(err)
+			if !parentAllowed {
+				fmt.Println("Calling fusermount3 is only allowed from")
+				fmt.Println(config.AllowedParents)
 				os.Exit(1)
 			}
 		}
-		if args[argno] == "-u" {
-			mountpoint = args[argno+1]
-			// checkDirectory cannot be called here because
-			// with DAOS local root might not be allowed to read
-			// the mounted directory
-			action = "umount"
+
+		// parse and check arguments
+		for argno := range args {
+			if args[argno] == "-o" {
+				// check forbidden mount options
+				parsed_opts, err = check_mountopts(args[argno+1])
+				if err != nil {
+					fmt.Println(err.Error())
+					os.Exit(1)
+				}
+
+			}
+			if args[argno] == "--" {
+				mountpoint = args[argno+1]
+				err := checkDirectory(mountpoint)
+				if err == nil {
+					action = "mount"
+				} else {
+					fmt.Println(err)
+					os.Exit(1)
+				}
+			}
+			if args[argno] == "-u" {
+				mountpoint = args[argno+1]
+				// checkDirectory cannot be called here because
+				// with DAOS local root might not be allowed to read
+				// the mounted directory
+				action = "umount"
+			}
 		}
 	}
+	if config.Mode == "relaxed" {
+		fmt.Println("not yet implemented")
+		os.Exit(1)
+	}
+	if config.Mode == "fallthrough" {
+		action = "fallthrough"
+	}
 
-	var safe_args []string
+	var new_args []string
 
 	// build fusermount arguments
 	if action == "mount" {
-		safe_args = []string{"-o", parsed_opts, "--", mountpoint}
+		new_args = []string{"-o", parsed_opts, "--", mountpoint}
 	}
 	if action == "umount" {
-		safe_args = []string{"-u", mountpoint}
+		new_args = []string{"-u", mountpoint}
+	}
+	if action == "fallthrough" {
+		// Real UID and GID from syscall
+		ruid := syscall.Getuid()
+		rgid := syscall.Getgid()
+		dropPrivileges(ruid, rgid)
+		// exec fusermount3 with all args
+		new_args = args
 	}
 
-	cmd := exec.Command(config.Target, safe_args...)
+	cmd := exec.Command(config.Target, new_args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
