@@ -2,6 +2,11 @@
 # executable which will be called with privileges to mount
 target: "/opt/fuzermount/fusermount3"
 
+# mode to work in
+# 'relaxed' means that all calls that are not explicitly forbidden are passed through
+# 'strict'  means that all calls that are not explicitly allowed are blocked
+mode: "relaxed"
+
 # allowed applications that might FUSE mount
 allowedParents: 
   - "/usr/bin/dfuse"

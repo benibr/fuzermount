@@ -15,6 +15,7 @@ import (
 
 type Config struct {
 	Target         string   `yaml:"target"`
+	Mode           string   `yaml:"mode"`
 	AllowedParents []string `yaml:"allowedParents"`
 	MandatoryOpts  []string `yaml:"mandatoryOpts"`
 	ForbiddenOpts  []string `yaml:"forbiddenOpts"`
