@@ -72,40 +72,46 @@ func check_parent() (bool, error) {
 	if slices.Contains(config.AllowedParents, parentPath) {
 		return true, nil
 	}
-	// FIXME: this should be returned and printed by main()
-	fmt.Printf("fusermount3 was called by '%s'", parentPath)
+	logger.Info().Msg(fmt.Sprintf("called by '%s'", parentPath))
 	return false, nil
 }
 
-func check_mountopts(opts string) (string, error) {
+func checkOptIsMandatory(opt string) {
+	if slices.Contains(config.MandatoryOpts, opt) {
+		// remove all found mandatory opts from slice
+		config.MandatoryOpts = slices.DeleteFunc(config.MandatoryOpts, func(s string) bool {
+			return s == opt
+		})
+	}
+}
+func checkOptIsForbidden(opt string) error {
+	// check for forbidden options
+	if slices.Contains(config.ForbiddenOpts, opt) {
+		return fmt.Errorf("'%s' is a forbidden mount option. Denying fuse mount", opt)
+	}
+	return nil
+}
+
+func checkAllMandatoryOptsPresent() error {
+	if len(config.MandatoryOpts) == 0 {
+		return nil
+	}
+	missing_opts := strings.Join(config.MandatoryOpts, ",")
+	return fmt.Errorf("not all mandatory mount options set. Missing '%s'\nDenying fuse mount", missing_opts)
+}
+
+func parseMountOpts(opts string) []string {
 	// this function checks for mount options that must or must not exist
 	var return_opts []string
 
 	for opt := range strings.SplitSeq(opts, ",") {
-		// check for mandatory options
-		if slices.Contains(config.MandatoryOpts, opt) {
-			config.MandatoryOpts = slices.DeleteFunc(config.MandatoryOpts, func(s string) bool {
-				return s == opt
-			})
-		}
-		// check for forbidden options
-		if slices.Contains(config.ForbiddenOpts, opt) {
-			return "", fmt.Errorf("'%s' is a forbidden mount option. Denying fuse mount", opt)
-		}
 		// remove empty strings
 		if opt == "" {
 			continue
 		}
 		return_opts = append(return_opts, opt)
 	}
-	// check if all mandatory options are set
-	if len(config.MandatoryOpts) == 0 {
-		ret := strings.Join(return_opts, ",")
-		return ret, nil
-	} else {
-		missing_opts := strings.Join(config.MandatoryOpts, ",")
-		return "", fmt.Errorf("not all mandatory mount options set. Missing '%s'\nDenying fuse mount", missing_opts)
-	}
+	return return_opts
 }
 
 func main() {
@@ -129,7 +135,8 @@ func main() {
 
 	// parse args
 	args := os.Args[1:]
-	logger.Info().Msg(strings.Join(args, " "))
+	argsString := strings.Join(args, " ")
+	logger.Info().Msg(fmt.Sprintf("called with args: '%s'", argsString))
 	// help output
 	if len(args) < 2 {
 		fmt.Println("This is NHR@ZIB mounting wrapper for FUSE filesystems.")
@@ -141,33 +148,35 @@ func main() {
 	}
 
 	// here the filtering starts
-	var parsed_opts, mountpoint, action string
+	var parsed_opts []string
+	var mountpoint string
+	action := "unknown"
 
-	if config.Mode == "strict" {
-		// check allowed parent application
-		if args[0] != "-u" {
-			parentAllowed, err := check_parent()
-			if err != nil {
-				fmt.Println(err.Error())
-				os.Exit(1)
-			}
-			if !parentAllowed {
-				fmt.Println("Calling fusermount3 is only allowed from")
-				fmt.Println(config.AllowedParents)
-				os.Exit(1)
-			}
-		}
+	if config.Mode == "strict" || config.Mode == "relaxed" {
 
 		// parse and check arguments
 		for argno := range args {
 			if args[argno] == "-o" {
-				// check forbidden mount options
-				parsed_opts, err = check_mountopts(args[argno+1])
+				parsed_opts = parseMountOpts(args[argno+1])
 				if err != nil {
 					fmt.Println(err.Error())
 					os.Exit(1)
 				}
-
+				for _, opt := range parsed_opts {
+					err = checkOptIsForbidden(opt)
+					if err != nil {
+						fmt.Println(err)
+						os.Exit(1)
+					}
+					checkOptIsMandatory(opt)
+				}
+				if config.Mode == "strict" {
+					err = checkAllMandatoryOptsPresent()
+					if err != nil {
+						fmt.Println(err)
+						os.Exit(1)
+					}
+				}
 			}
 			if args[argno] == "--" {
 				mountpoint = args[argno+1]
@@ -187,24 +196,16 @@ func main() {
 				action = "umount"
 			}
 		}
+	} else {
+		action = "fallthrough"
 	}
-	if config.Mode == "relaxed" {
-		fmt.Println("not yet implemented")
-		os.Exit(1)
-	}
-	if config.Mode == "fallthrough" {
+
+	if config.Mode == "relaxed" && action == "unknown" {
 		action = "fallthrough"
 	}
 
 	var new_args []string
 
-	// build fusermount arguments
-	if action == "mount" {
-		new_args = []string{"-o", parsed_opts, "--", mountpoint}
-	}
-	if action == "umount" {
-		new_args = []string{"-u", mountpoint}
-	}
 	if action == "fallthrough" {
 		// Real UID and GID from syscall
 		ruid := syscall.Getuid()
@@ -212,6 +213,32 @@ func main() {
 		dropPrivileges(ruid, rgid)
 		// exec fusermount3 with all args
 		new_args = args
+	}
+	// FIXME: this could be simpler by calling checkParent before setting the action
+	if action == "mount" || action == "unmount" {
+		if config.Mode == "strict" {
+			parentAllowed, err := check_parent()
+			if err != nil {
+				fmt.Println(err.Error())
+				os.Exit(1)
+			}
+			if !parentAllowed {
+				fmt.Println("Calling fusermount3 is only allowed from")
+				fmt.Println(config.AllowedParents)
+				os.Exit(1)
+			}
+		}
+	}
+	if action == "mount" {
+		newOptsString := strings.Join(parsed_opts, ",")
+		new_args = []string{"-o", newOptsString, "--", mountpoint}
+	}
+	if action == "umount" {
+		new_args = []string{"-u", mountpoint}
+	}
+	if action == "unknown" {
+		fmt.Println("fusermount3 parameter not allowed")
+		os.Exit(1)
 	}
 
 	cmd := exec.Command(config.Target, new_args...)

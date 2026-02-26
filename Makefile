@@ -41,9 +41,11 @@ test: containerbuild
 	@echo
 	podman run --rm -ti --name fuzermount-test -- fuzermount:test fusermount3 -u /mnt
 	@echo
+	podman run --rm -ti --name fuzermount-test -- fuzermount:test fusermount3 -s --bar || true
+	@echo
 	podman run --rm -ti --name fuzermount-test -- fuzermount:test dfuse -a foo -o bar,secu,bang -bas -- /mnt/foo || true
 	@echo
-	podman run --rm -ti --name fuzermount-test -- fuzermount:test dfuse -a foo -u /mnt/foo -o bar,secu,,bang -bas -- /mnt/foo || true
+	podman run --rm -ti --name fuzermount-test -- fuzermount:test dfuse -a foo -u /mnt/nonexisting -o bar,secu,,bang -bas -- /mnt || true
 	@echo
 	podman run --rm -ti --name fuzermount-test -- fuzermount:test dfuse -a foo -o suid -- /mnt/foo || true
 

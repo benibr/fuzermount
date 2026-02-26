@@ -6,7 +6,9 @@ target: "/opt/fuzermount/fusermount3"
 # 'fallthrough' means that all calls are passed through without any additional privileges
 # 'relaxed'     means that all calls that are not explicitly forbidden, are allowed
 # 'strict'      means that all calls that are not explicitly allowed are blocked
-mode: "fallthrough"
+#mode: "relaxed"
+#mode: "strict"
+mode: "falltrhough"
 
 # allowed applications that might FUSE mount
 allowedParents: 
